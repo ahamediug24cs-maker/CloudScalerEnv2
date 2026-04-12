@@ -25,3 +25,4 @@ server = "server.app:main"
 
 [tool.setuptools]
 packages = ["src", "server"]
+py-modules = ["grader", "graders"]

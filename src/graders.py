@@ -26,17 +26,17 @@ def grade_hard(final_state: EnvState) -> float:
 
 
 class EasyGrader:
-    def grade(self, final_state: EnvState) -> float:
+    def grade(self, final_state: EnvState = None) -> float:
         return grade_easy(final_state)
 
 
 class MediumGrader:
-    def grade(self, final_state: EnvState) -> float:
+    def grade(self, final_state: EnvState = None) -> float:
         return grade_medium(final_state)
 
 
 class HardGrader:
-    def grade(self, final_state: EnvState) -> float:
+    def grade(self, final_state: EnvState = None) -> float:
         return grade_hard(final_state)
 
 

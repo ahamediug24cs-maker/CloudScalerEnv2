@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import uvicorn
 
 from .env import CloudScalerEnv
-from .models import Action, ServiceState
+from .models import Action, EnvState, Observation, ServiceState
 from .tasks import get_task_easy, get_task_hard, get_task_medium
 
 
@@ -18,6 +18,23 @@ class ResetRequest(BaseModel):
 
 app = FastAPI(title="CloudScalerEnv OpenEnv API")
 env = CloudScalerEnv()
+
+
+@app.get("/metadata")
+async def metadata() -> dict:
+    return {
+        "name": "CloudScalerEnv",
+        "description": "SRE environment for autoscaling and recovery under budget and SLA constraints.",
+    }
+
+
+@app.get("/schema")
+async def schema() -> dict:
+    return {
+        "action": Action.model_json_schema(),
+        "observation": Observation.model_json_schema(),
+        "state": EnvState.model_json_schema(),
+    }
 
 
 def _resolve_task(task_id: Optional[str]):
@@ -63,7 +80,19 @@ async def root() -> dict:
 
 @app.get("/health")
 async def health() -> dict:
-    return {"healthy": True}
+    return {"status": "healthy"}
+
+
+@app.post("/mcp")
+async def mcp(payload: Optional[dict] = None) -> dict:
+    return {
+        "jsonrpc": "2.0",
+        "id": (payload or {}).get("id", 1),
+        "result": {
+            "status": "ok",
+            "name": "CloudScalerEnv",
+        },
+    }
 
 
 @app.post("/reset")

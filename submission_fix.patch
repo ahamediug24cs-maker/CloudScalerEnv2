@@ -1,0 +1,297 @@
+From 11abecda6cd991e5dcf2a4b2858bea666e4c23b0 Mon Sep 17 00:00:00 2001
+From: ahamediug24cs-maker <your-email@example.com>
+Date: Sun, 12 Apr 2026 13:58:15 +0530
+Subject: [PATCH] Fix grader discovery with explicit 3-task wiring
+
+---
+ .gitignore     | 16 ++++++++++++++++
+ grader.py      |  3 +++
+ graders.py     |  3 +++
+ openenv.yaml   | 39 +++++++++++++++++++++++++++++++++++----
+ src/graders.py | 22 ++++++++++++++++++++++
+ src/models.py  |  9 ++++++---
+ src/tasks.py   | 47 ++++++++++++++++++++++++++++++++++++++---------
+ 7 files changed, 123 insertions(+), 16 deletions(-)
+ create mode 100644 .gitignore
+ create mode 100644 grader.py
+ create mode 100644 graders.py
+ create mode 100644 src/graders.py
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..ed63ea7
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,16 @@
++.venv/
++__pycache__/
++**/__pycache__/
++*.pyc
++*.pyo
++*.pyd
++.pytest_cache/
++*.egg-info/
++my_env/
++stress_report.json
++.mypy_cache/
++.ruff_cache/
++.coverage
++htmlcov/
++dist/
++build/
+diff --git a/grader.py b/grader.py
+new file mode 100644
+index 0000000..59f0072
+--- /dev/null
++++ b/grader.py
+@@ -0,0 +1,3 @@
++from src.tasks import grade_easy, grade_hard, grade_medium
++
++__all__ = ["grade_easy", "grade_medium", "grade_hard"]
+diff --git a/graders.py b/graders.py
+new file mode 100644
+index 0000000..59f0072
+--- /dev/null
++++ b/graders.py
+@@ -0,0 +1,3 @@
++from src.tasks import grade_easy, grade_hard, grade_medium
++
++__all__ = ["grade_easy", "grade_medium", "grade_hard"]
+diff --git a/openenv.yaml b/openenv.yaml
+index d74533d..9e110e1 100644
+--- a/openenv.yaml
++++ b/openenv.yaml
+@@ -1,6 +1,6 @@
+ name: "CloudScalerEnv"
+ version: "1.0.0"
+-description: "An environment where an autonomous agent acts as an SRE, scaling and restarting microservices to optimize resource utilization and prevent crashes."
++description: "SRE environment for autoscaling and recovery under budget and SLA constraints."
+ author: "OpenEnv Contributor"
+ license: "MIT"
+ tags:
+@@ -17,11 +17,42 @@ environment:
+ 
+ tasks:
+   - id: "easy-memory-leak"
++    task_id: "easy-memory-leak"
+     difficulty: "easy"
+-    description: "Restart a service before it runs out of memory."
++    description: "Restart a leaking service before crash with minimal overhead."
++    task_loader: "src.tasks:get_task_easy"
++    task_entrypoint: "src.tasks:get_task_easy"
++    grader: "src.tasks:grade_easy"
++    grader_entrypoint: "src.tasks:grade_easy"
++    grader_fn: "src.tasks:grade_easy"
++
+   - id: "medium-traffic-spike"
++    task_id: "medium-traffic-spike"
+     difficulty: "medium"
+-    description: "Scale services up and down to handle CPU load efficiently."
++    description: "Handle multi-service CPU spikes while staying near SLA band."
++    task_loader: "src.tasks:get_task_medium"
++    task_entrypoint: "src.tasks:get_task_medium"
++    grader: "src.tasks:grade_medium"
++    grader_entrypoint: "src.tasks:grade_medium"
++    grader_fn: "src.tasks:grade_medium"
++
+   - id: "hard-cascading-failure"
++    task_id: "hard-cascading-failure"
+     difficulty: "hard"
+-    description: "Manage multiple failing services under a strict resource budget."
++    description: "Prevent cascading failures across dependencies under tight budget."
++    task_loader: "src.tasks:get_task_hard"
++    task_entrypoint: "src.tasks:get_task_hard"
++    grader: "src.tasks:grade_hard"
++    grader_entrypoint: "src.tasks:grade_hard"
++    grader_fn: "src.tasks:grade_hard"
++
++graders:
++  easy-memory-leak:
++    entrypoint: "src.tasks:grade_easy"
++    task_loader: "src.tasks:get_task_easy"
++  medium-traffic-spike:
++    entrypoint: "src.tasks:grade_medium"
++    task_loader: "src.tasks:get_task_medium"
++  hard-cascading-failure:
++    entrypoint: "src.tasks:grade_hard"
++    task_loader: "src.tasks:get_task_hard"
+diff --git a/src/graders.py b/src/graders.py
+new file mode 100644
+index 0000000..0575f4e
+--- /dev/null
++++ b/src/graders.py
+@@ -0,0 +1,22 @@
++from .models import EnvState
++from .tasks import grade_easy as _grade_easy
++from .tasks import grade_hard as _grade_hard
++from .tasks import grade_medium as _grade_medium
++
++
++def grade_easy(final_state: EnvState) -> float:
++    """Compatibility wrapper for easy task grader."""
++    return _grade_easy(final_state)
++
++
++def grade_medium(final_state: EnvState) -> float:
++    """Compatibility wrapper for medium task grader."""
++    return _grade_medium(final_state)
++
++
++def grade_hard(final_state: EnvState) -> float:
++    """Compatibility wrapper for hard task grader."""
++    return _grade_hard(final_state)
++
++
++__all__ = ["grade_easy", "grade_medium", "grade_hard"]
+diff --git a/src/models.py b/src/models.py
+index 3b8e1f0..e8bb564 100644
+--- a/src/models.py
++++ b/src/models.py
+@@ -1,4 +1,4 @@
+-from typing import Dict, Literal, Optional
++from typing import Dict, List, Literal, Optional
+ 
+ from pydantic import BaseModel, Field, ConfigDict
+ 
+@@ -28,12 +28,12 @@ class EnvState(Observation):
+     task_id: str = "unknown"
+     seed: int = 0
+     cumulative_reward: float = 0.0
+-    service_dependencies: Dict[str, list] = Field(default_factory=dict)  # e.g., {"backend": ["db-proxy"]}
++    service_dependencies: Dict[str, List[str]] = Field(default_factory=dict)
+     action_costs: float = 0.0  # Cumulative cost of scale_up/restart actions
+     cpu_deviation_sum: float = 0.0  # Internal tracking for deviation
+     service_uptime: Dict[str, int] = Field(default_factory=dict)  # Tracks healthy steps per service
+     
+-    model_config = ConfigDict(exclude={'cpu_deviation_sum', 'service_uptime'})
++    model_config = ConfigDict(exclude={"cpu_deviation_sum", "service_uptime"})
+ 
+ 
+ class Action(BaseModel):
+@@ -58,3 +58,6 @@ class TaskSpec(BaseModel):
+     objective: str
+     max_steps: int = Field(ge=5, le=100)
+     seed: int = 0
++    grader: Optional[str] = None
++    grader_entrypoint: Optional[str] = None
++    grader_fn: Optional[str] = None
+diff --git a/src/tasks.py b/src/tasks.py
+index 7687f0a..7ef1dad 100644
+--- a/src/tasks.py
++++ b/src/tasks.py
+@@ -4,6 +4,8 @@ from .models import EnvState, ServiceState, TaskSpec
+ 
+ 
+ class TaskGrader:
++    _SCORE_EPSILON = 1e-4
++
+     def __init__(self, task: TaskSpec):
+         self.task = task
+ 
+@@ -19,17 +21,15 @@ class TaskGrader:
+         return self._calibrate_score(raw, "hard")
+ 
+     def _calibrate_score(self, raw_score: float, difficulty: str) -> float:
+-        """Difficulty-normalized calibration with boosted baselines while preserving trajectory sensitivity."""
++        """Calibrate raw score by difficulty and clamp to strict (0,1)."""
+         if difficulty == "easy":
+-            # Easy is naturally high, boost further for good trajectories
+             calibrated = 0.30 + (0.70 * raw_score)
+         elif difficulty == "medium":
+-            # Medium needs boost - increase base and amplitude
+             calibrated = 0.50 + (0.50 * raw_score)
+         else:  # hard
+-            # Hard gets realistic boost
+             calibrated = 0.48 + (0.52 * raw_score)
+-        return round(max(0.0, min(1.0, calibrated)), 4)
++        bounded = max(self._SCORE_EPSILON, min(1.0 - self._SCORE_EPSILON, calibrated))
++        return round(bounded, 4)
+     
+     def _reliability_score(self, final_state: EnvState, max_crashes: int = 1) -> float:
+         """Score based on crash prevention. 1.0 if no crashes, degrades with each crash."""
+@@ -161,7 +161,7 @@ class TaskGrader:
+ 
+ 
+ def get_task_easy() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+-    """Task 1: One service with a memory leak; restart before crash."""
++    """Easy: one-service memory leak mitigation."""
+     task = TaskSpec(
+         task_id="easy-memory-leak",
+         name="Memory Leak Prevention",
+@@ -169,6 +169,9 @@ def get_task_easy() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+         objective="Restart leaking service before it crashes while avoiding unnecessary scaling.",
+         max_steps=20,
+         seed=11,
++        grader="src.tasks:grade_easy",
++        grader_entrypoint="src.tasks:grade_easy",
++        grader_fn="src.tasks:grade_easy",
+     )
+     initial = {
+         "web-frontend": ServiceState(replicas=2, cpu_utilization=50.0, memory_utilization=85.0),
+@@ -177,7 +180,7 @@ def get_task_easy() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+ 
+ 
+ def get_task_medium() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+-    """Task 2: CPU traffic spike; scale up dynamically, then scale down."""
++    """Medium: multi-service traffic spike handling."""
+     task = TaskSpec(
+         task_id="medium-traffic-spike",
+         name="Traffic Spike Handling",
+@@ -185,6 +188,9 @@ def get_task_medium() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+         objective="Keep services in 50-70% CPU band through dynamic scaling and controlled restarts.",
+         max_steps=24,
+         seed=22,
++        grader="src.tasks:grade_medium",
++        grader_entrypoint="src.tasks:grade_medium",
++        grader_fn="src.tasks:grade_medium",
+     )
+     initial = {
+         "auth-api": ServiceState(replicas=1, cpu_utilization=88.0, memory_utilization=40.0),
+@@ -194,7 +200,7 @@ def get_task_medium() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+ 
+ 
+ def get_task_hard() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+-    """Task 3: Multiple services with tighter budget and cascading failures."""
++    """Hard: cascading failure prevention with tight budget."""
+     task = TaskSpec(
+         task_id="hard-cascading-failure",
+         name="Cascading Failure Mitigation",
+@@ -202,6 +208,9 @@ def get_task_hard() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+         objective="Prevent cascading crashes under tight budget while maintaining service health.",
+         max_steps=30,
+         seed=33,
++        grader="src.tasks:grade_hard",
++        grader_entrypoint="src.tasks:grade_hard",
++        grader_fn="src.tasks:grade_hard",
+     )
+     initial = {
+         "frontend": ServiceState(replicas=3, cpu_utilization=80.0, memory_utilization=90.0),
+@@ -211,4 +220,24 @@ def get_task_hard() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
+     return task, initial, TaskGrader(task)
+ 
+ 
+-__all__ = ["TaskGrader", "get_task_easy", "get_task_medium", "get_task_hard"]
++def grade_easy(final_state: EnvState) -> float:
++    return get_task_easy()[2].grade(final_state)
++
++
++def grade_medium(final_state: EnvState) -> float:
++    return get_task_medium()[2].grade(final_state)
++
++
++def grade_hard(final_state: EnvState) -> float:
++    return get_task_hard()[2].grade(final_state)
++
++
++__all__ = [
++    "TaskGrader",
++    "get_task_easy",
++    "get_task_medium",
++    "get_task_hard",
++    "grade_easy",
++    "grade_medium",
++    "grade_hard",
++]
+-- 
+2.53.0.windows.2
+

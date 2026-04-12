@@ -87,6 +87,8 @@ def main() -> int:
             "uv.lock",
             "src/**",
             "server/**",
+            "grader.py",
+            "graders.py",
         ],
         ignore_patterns=[
             ".venv/**",

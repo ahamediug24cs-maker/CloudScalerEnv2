@@ -169,9 +169,9 @@ def get_task_easy() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
         objective="Restart leaking service before it crashes while avoiding unnecessary scaling.",
         max_steps=20,
         seed=11,
-        grader="src.tasks:grade_easy",
-        grader_entrypoint="src.tasks:grade_easy",
-        grader_fn="src.tasks:grade_easy",
+        grader="graders:EasyGrader",
+        grader_entrypoint="graders:EasyGrader",
+        grader_fn="graders:EasyGrader",
     )
     initial = {
         "web-frontend": ServiceState(replicas=2, cpu_utilization=50.0, memory_utilization=85.0),
@@ -188,9 +188,9 @@ def get_task_medium() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
         objective="Keep services in 50-70% CPU band through dynamic scaling and controlled restarts.",
         max_steps=24,
         seed=22,
-        grader="src.tasks:grade_medium",
-        grader_entrypoint="src.tasks:grade_medium",
-        grader_fn="src.tasks:grade_medium",
+        grader="graders:MediumGrader",
+        grader_entrypoint="graders:MediumGrader",
+        grader_fn="graders:MediumGrader",
     )
     initial = {
         "auth-api": ServiceState(replicas=1, cpu_utilization=88.0, memory_utilization=40.0),
@@ -208,9 +208,9 @@ def get_task_hard() -> Tuple[TaskSpec, Dict[str, ServiceState], TaskGrader]:
         objective="Prevent cascading crashes under tight budget while maintaining service health.",
         max_steps=30,
         seed=33,
-        grader="src.tasks:grade_hard",
-        grader_entrypoint="src.tasks:grade_hard",
-        grader_fn="src.tasks:grade_hard",
+        grader="graders:HardGrader",
+        grader_entrypoint="graders:HardGrader",
+        grader_fn="graders:HardGrader",
     )
     initial = {
         "frontend": ServiceState(replicas=3, cpu_utilization=80.0, memory_utilization=90.0),

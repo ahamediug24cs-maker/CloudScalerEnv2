@@ -238,6 +238,22 @@ def grade_hard(final_state: Optional[EnvState]) -> float:
     return get_task_hard()[2].grade(final_state)
 
 
+TASK_REGISTRY = {
+    "easy-memory-leak": {
+        "loader": get_task_easy,
+        "grader": grade_easy,
+    },
+    "medium-traffic-spike": {
+        "loader": get_task_medium,
+        "grader": grade_medium,
+    },
+    "hard-cascading-failure": {
+        "loader": get_task_hard,
+        "grader": grade_hard,
+    },
+}
+
+
 __all__ = [
     "TaskGrader",
     "get_task_easy",
@@ -246,4 +262,5 @@ __all__ = [
     "grade_easy",
     "grade_medium",
     "grade_hard",
+    "TASK_REGISTRY",
 ]

@@ -297,7 +297,7 @@ This repository is configured to satisfy the evaluator contract.
 - Output line format emitted by `inference.py`:
   - `[START] task=<task_name> env=<benchmark> model=<model_name>`
   - `[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>`
-  - `[END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>`
+  - `[END] success=<true|false> steps=<n> score=<0.00> rewards=<r1,r2,...,rn>`
 - Numeric formatting:
   - `reward` is formatted to two decimals
   - `rewards` list values are formatted to two decimals
@@ -563,5 +563,5 @@ Then verify the service:
 
 ```bash
 curl http://localhost:7860/health
-curl "http://localhost:7860/baseline?mode=heuristic"
+curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d "{\"task_id\":\"easy-memory-leak\"}"
 ```

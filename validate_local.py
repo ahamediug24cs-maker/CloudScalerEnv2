@@ -175,6 +175,16 @@ def validate_tasks() -> bool:
     print("Validating tasks and graders...")
     
     try:
+        try:
+            from tasks import TASK_REGISTRY
+
+            print(f"  • Discovered tasks via TASK_REGISTRY: {sorted(TASK_REGISTRY.keys())}")
+            if len(TASK_REGISTRY) < 3:
+                print("  ✗ TASK_REGISTRY has fewer than 3 entries")
+                return False
+        except Exception as registry_exc:
+            print(f"  • TASK_REGISTRY unavailable: {registry_exc}")
+
         tasks_list = [
             ("easy", get_task_easy),
             ("medium", get_task_medium),
